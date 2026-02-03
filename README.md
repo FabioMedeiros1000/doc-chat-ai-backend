@@ -1,0 +1,61 @@
+## Guia de Uso do Projeto
+
+Este README descreve os principais comandos para executar as etapas do projeto, desde a coleta de conteúdo até a execução dos agentes e da API.
+
+---
+
+### Gerar arquivos Markdown a partir do Firecrawl
+
+Utilize o comando abaixo para realizar o scraping de um site e gerar um arquivo Markdown com o conteúdo extraído:
+
+```powershell
+python -m scripts.scraping "<URL_SITE>" "<NOME_ARQUIVO>.md"
+```
+
+### Vetorizar arquivos no banco vetorial
+
+Após gerar os arquivos Markdown, execute o comando abaixo para indexar o conteúdo no banco vetorial:
+
+```powershell
+python -m scripts.index_laws
+```
+
+### Executar os agentes
+
+Para rodar um agente específico, utilize o comando abaixo, informando o nome do arquivo do agente (sem a extensão .py):
+
+```powershell
+python -m agents.<nome_do_arquivo_do_agente_sem_.py>
+```
+
+### Subir o Qdrant
+
+Inicie o banco vetorial Qdrant utilizando Docker:
+
+```powershell
+docker-compose up -d
+```
+
+### Visualizar o Qdrant
+
+Acesse o dashboard do Qdrant pelo navegador:
+
+```powershell
+http://localhost:6333/dashboard
+```
+
+### Ativar o ambiente virtual
+
+Windows:
+
+```powershell
+.venv/Scripts/activate
+```
+
+### Subir a API
+
+Com o ambiente virtual ativado, execute:
+
+```powershell
+uvicorn api.main:app
+```
