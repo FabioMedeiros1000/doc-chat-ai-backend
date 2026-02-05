@@ -44,6 +44,14 @@ Acesse o dashboard do Qdrant pelo navegador:
 http://localhost:6333/dashboard
 ```
 
+### Criar ambiente virtual
+
+```powershell
+uv venv
+```
+
+**Observação**: Caso não tenha uv, você pode instalá-lo com **pip install uv**
+
 ### Ativar o ambiente virtual
 
 Windows:
@@ -52,10 +60,16 @@ Windows:
 .venv/Scripts/activate
 ```
 
+### Como baixar as dependências
+
+````powershell
+uv sync
+``
+
 ### Subir a API
 
 Com o ambiente virtual ativado, execute:
 
 ```powershell
 uvicorn api.main:app
-```
+````
