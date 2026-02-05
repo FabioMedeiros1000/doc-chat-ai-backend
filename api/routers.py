@@ -1,10 +1,9 @@
-from fastapi import APIRouter, Depends, status, HTTPException
+from fastapi import APIRouter, Depends, status, HTTPException, UploadFile, File
 from functools import lru_cache
 
-from schemas.resposta_simples import RespostaSimples
-from schemas.trechos_lei import ListaTrechosLei
-from schemas.resposta_legal import RespostaLegal
-from schemas.pergunta import Pergunta
+from schemas.chat_request import ChatRequest
+from schemas.chat_response import ChatResponse
+from schemas.upload_response import UploadResponse
 from api.services import LeiService
 from api.exceptions import AgentError
 
@@ -15,34 +14,16 @@ def get_law_service() -> LeiService:
     return LeiService()
 
 @router.post(
-    "/retriever",
-    response_model=ListaTrechosLei,
+    "/upload",
+    response_model=UploadResponse,
     status_code=status.HTTP_200_OK,
 )
-def retriever_laws(
-    payload: Pergunta,
+async def upload_file(
+    file: UploadFile = File(...),
     service: LeiService = Depends(get_law_service),
 ):
     try:
-        return service.retriever_laws(payload)
-    except AgentError as e:
-        
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=str(e)
-        )
-        
-@router.post(
-    "/explain-law",
-    response_model=str,
-    status_code=status.HTTP_200_OK,
-)
-def explain_law(
-    payload: Pergunta,
-    service: LeiService = Depends(get_law_service),
-):
-    try:
-        return service.explain_law(payload)
+        return await service.upload_file(file)
     except AgentError as e:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
@@ -50,52 +31,20 @@ def explain_law(
         )
 
 @router.post(
-    "/responder",
-    response_model=RespostaLegal,
+    "/chat",
+    response_model=ChatResponse,
     status_code=status.HTTP_200_OK,
 )
-def responder(
-    payload: Pergunta,
+def chat(
+    payload: ChatRequest,
     service: LeiService = Depends(get_law_service),
 ):
     try:
-        return service.responder(payload)
+        return service.chat(payload)
     except AgentError as e:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=str(e)
         )
-        
-@router.post(
-    "/chat-responder",
-    response_model=RespostaSimples,
-    status_code=status.HTTP_200_OK,
-)
-def chat_responder(
-    payload: Pergunta,
-    service: LeiService = Depends(get_law_service),
-):
-    try:
-        return service.chat_responder(payload)
-    except AgentError as e:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=str(e)
-        )
-        
-@router.post(
-    "/technical-note",
-    response_model=str,
-    status_code=status.HTTP_200_OK,
-)
-def technical_note(
-    payload: Pergunta,
-    service: LeiService = Depends(get_law_service),
-):
-    try:
-        return service.technical_note(payload)
-    except AgentError as e:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=str(e)
-        )
+
+

@@ -1,80 +1,50 @@
+from fastapi import UploadFile
 from agno.agent import RunOutput
 
-from schemas.resposta_simples import RespostaSimples
-from schemas.trechos_lei import ListaTrechosLei
-from schemas.resposta_legal import RespostaLegal
-from agents.explain_law import agent as agent_explain_law
-from agents.legal_responder import agent as agent_responder
-from agents.chat_responder import agent as chat_responder
-from agents.technical_note import team as agent_technical_note
-from agents.retriever_laws import agent as agent_retriever
+from schemas.chat_request import ChatRequest
+from schemas.chat_response import ChatResponse
+from schemas.upload_response import UploadResponse
 from schemas.pergunta import Pergunta
 from api.exceptions import AgentError
+from api.ingestion.constants import ERROR_NO_TEXT, UPLOAD_SUCCESS_MESSAGE
+from api.ingestion.file_utils import (
+    build_metadata,
+    cleanup_paths,
+    compute_text_hash,
+    read_upload_data,
+    validate_extension,
+    write_temp_bytes,
+    write_temp_markdown,
+)
+from api.ingestion.indexer import index_markdown_file
+from api.ingestion.text_extractors import extract_text
+
+from agents.chat_responder import agent as chat_responder
 
 class LeiService:
-    def retriever_laws(self, payload: Pergunta) -> ListaTrechosLei:
+    def chat(self, payload: ChatRequest) -> ChatResponse:
+        result: RunOutput = chat_responder.run(payload.question)
+        return ChatResponse(answer=result.content)
+
+    async def upload_file(self, file: UploadFile) -> UploadResponse:
+        filename = file.filename or ""
+        ext = validate_extension(filename)
+        data = await read_upload_data(file)
+
+        tmp_path = None
+        md_path = None
         try:
-            run: RunOutput = agent_retriever.run(
-                f"Quais dispositivos tratam de: {payload.pergunta}"
-            )  
-        except Exception as e:
-            raise AgentError("Erro ao utilizar o agente de recuperação de leis.") from e
+            tmp_path = write_temp_bytes(data, ext)
 
-        results: ListaTrechosLei = run.content  
-        return results
-    
-    def explain_law(self, payload: Pergunta) -> str:
-        try:
-            run: RunOutput = agent_explain_law.run(payload.pergunta)  
-        except Exception as e:
-            raise AgentError("Erro ao utilizar o agente que explica leis de forma simplificada.") from e
+            text = extract_text(tmp_path)
+            if not text or not text.strip():
+                raise AgentError(ERROR_NO_TEXT)
 
-        result: str = run.content  
-        return result
-    
-    def technical_note(self, payload: Pergunta) -> str:
-        try:
-            run: RunOutput = agent_technical_note.run(f"Nota técnica sobre: {payload.pergunta}")  
-        except Exception as e:
-            raise AgentError("Erro ao utilizar o agente que redige norma técnica sobre leis tributárias") from e
+            content_hash = compute_text_hash(text)
+            metadata = build_metadata(filename, file.content_type, content_hash)
+            md_path = write_temp_markdown(text)
+            await index_markdown_file(md_path, content_hash, metadata)
 
-        result: str = run.content  
-        return result
-
-    def responder(self, payload: Pergunta) -> RespostaLegal:
-        try:
-            run: RunOutput = agent_responder.run(
-                payload.pergunta
-            )
-        except Exception as e:
-            raise AgentError("Error ao utilizar o agente") from e
-        
-        if isinstance(run.content, RespostaLegal):
-            return run.content
-
-        try:
-            return RespostaLegal.model_validate(run.content)
-        except Exception as e:
-            raise AgentError("Resposta do agente em formato inesperado") from e
-        
-    def chat_responder(self, payload: Pergunta) -> RespostaSimples:
-        try:
-            run: RunOutput = chat_responder.run(
-                payload.pergunta
-            )
-        except Exception as e:
-            raise AgentError("Error ao utilizar o agente") from e
-
-        # O agente normalmente retorna uma string simples em run.content.
-        # Como o endpoint declara response_model=RespostaSimples, precisamos
-        # garantir que o retorno seja um objeto desse modelo.
-        if isinstance(run.content, RespostaSimples):
-            return run.content
-
-        if isinstance(run.content, str):
-            return RespostaSimples(resposta=run.content)
-
-        try:
-            return RespostaSimples.model_validate(run.content)
-        except Exception as e:
-            raise AgentError("Resposta do agente em formato inesperado") from e
+            return UploadResponse(success=True, message=UPLOAD_SUCCESS_MESSAGE)
+        finally:
+            cleanup_paths(tmp_path, md_path)
