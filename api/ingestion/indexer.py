@@ -5,12 +5,22 @@ from agno.knowledge.reader.markdown_reader import MarkdownReader
 from agno.knowledge.chunking.recursive import RecursiveChunking
 
 from api.exceptions import AgentError
-from vectordb.knowledge import knowledge
+from vectordb.knowledge import get_knowledge
 
 
-async def index_markdown_file(path: Path, content_hash: str, metadata: Dict) -> None:
+async def index_markdown_file(
+    path: Path,
+    content_hash: str,
+    metadata: Dict,
+    userHash: str | None = None,
+) -> None:
     try:
         reader = MarkdownReader(chunking_strategy=RecursiveChunking())
+        knowledge = get_knowledge(userHash)
+
+        if knowledge is None:
+            raise AgentError("Knowledge base is not available for the specified collection.")
+        
         await knowledge.add_content_async(
             name=f"upload_{content_hash}",
             path=path,

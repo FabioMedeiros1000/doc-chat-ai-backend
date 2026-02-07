@@ -2,6 +2,7 @@ import hashlib
 import tempfile
 from pathlib import Path
 from typing import Optional
+from datetime import datetime, timezone
 
 from fastapi import UploadFile
 
@@ -44,12 +45,29 @@ def compute_text_hash(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
-def build_metadata(filename: str, content_type: Optional[str], content_hash: str) -> dict:
+def _utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def build_metadata(
+    filename: str,
+    content_type: Optional[str],
+    content_hash: str,
+    user_hash: str,
+    size: int,
+    uploaded_at: Optional[str] = None,
+    status: str = "ready",
+) -> dict:
+    uploaded_at_value = uploaded_at or _utc_now_iso()
     return {
         "filename": filename,
         "content_type": content_type,
         "source": UPLOAD_SOURCE,
         "hash": content_hash,
+        "user_hash": user_hash,
+        "size": size,
+        "uploaded_at": uploaded_at_value,
+        "status": status,
     }
 
 

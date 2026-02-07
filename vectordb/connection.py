@@ -8,9 +8,9 @@ from config.env_settings import get_settings
 settings = get_settings()
 
 @lru_cache(maxsize=None)
-def get_vector_db(collection_name: str) -> Qdrant:
+def get_vector_db(userHash: str) -> Qdrant:
     return Qdrant(
-        collection=collection_name,
+        collection=userHash,
         url=settings.QDRANT_URL,
         embedder=get_llm(LLMModel.EMBEDDING),
         distance=Distance.COSINE,
