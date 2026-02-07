@@ -21,23 +21,16 @@ def _dedupe_files(points: List[object]) -> List[FileItem]:
         file_hash = payload.get("hash") or str(getattr(point, "id", "") or "")
         if not file_hash:
             continue
-        uploaded_at = (
-            payload.get("uploaded_at")
-            or payload.get("uploadedAt")
-            or "1970-01-01T00:00:00Z"
-        )
         existing = files_by_hash.get(file_hash)
-        if existing and existing.uploadedAt >= uploaded_at:
+        if existing:
             continue
+
+        filename = payload.get("meta_data").get("filename")
         files_by_hash[file_hash] = FileItem(
             id=str(file_hash),
-            name=str(payload.get("filename") or ""),
-            size=int(payload.get("size") or 0),
-            uploadedAt=uploaded_at,
-            status=payload.get("status"),
+            name=str(filename or "")
         )
     files = list(files_by_hash.values())
-    files.sort(key=lambda item: item.uploadedAt, reverse=True)
     return files
 
 
