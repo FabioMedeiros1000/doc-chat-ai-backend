@@ -18,7 +18,8 @@ def _dedupe_files(points: List[object]) -> List[FileItem]:
     files_by_hash: Dict[str, FileItem] = {}
     for point in points:
         payload = getattr(point, "payload", None) or {}
-        file_hash = payload.get("hash") or str(getattr(point, "id", "") or "")
+        file_hash = str(getattr(point, "payload").get("name"))
+
         if not file_hash:
             continue
         existing = files_by_hash.get(file_hash)
