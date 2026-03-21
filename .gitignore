@@ -17,3 +17,27 @@ qdrant_data
 qdrant_config
 qdrant_config.yaml
 
+db/mysql
+
+# Test and type checker caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# IDEs
+.vscode/
+.idea/
+
+# Temporary files
+*.log
+*.tmp
+*.swp
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS files
+.DS_Store
+Thumbs.db
