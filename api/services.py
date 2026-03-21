@@ -20,13 +20,15 @@ from api.ingestion.indexer import index_markdown_file
 from api.ingestion.text_extractors import extract_text
 from vectordb.files_repository import list_files_for_user
 
-from agents.chat_responder import agent as chat_responder
+from agents.chat_responder import get_chat_responder_agent
 
 from vectordb.knowledge import get_knowledge
 
 class LeiService:
     def chat(self, payload: ChatRequest) -> ChatResponse:
-        result: RunOutput = chat_responder.run(input=payload.question, knowledge=get_knowledge(payload.userHash))
+        chat_responder = get_chat_responder_agent(knowledge=get_knowledge(payload.userHash))
+        result: RunOutput = chat_responder.run(input=payload.question)
+        
         return ChatResponse(answer=result.content)
 
     async def upload_file(
