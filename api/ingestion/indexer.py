@@ -15,7 +15,10 @@ async def index_markdown_file(
     userHash: str | None = None,
 ) -> None:
     try:
-        reader = MarkdownReader(chunking_strategy=RecursiveChunking())
+        reader = MarkdownReader(chunking_strategy=RecursiveChunking(
+            chunk_size=700,
+            overlap=100
+        ))
         knowledge = get_knowledge(userHash)
 
         if knowledge is None:
