@@ -6,7 +6,7 @@ from schemas.chat_response import ChatResponse
 from schemas.upload_response import UploadResponse
 from schemas.file_item import FileItem
 from api.services import LeiService
-from api.exceptions import AgentError
+from api.exceptions import AgentError, UserStorageLimitError
 
 router = APIRouter()
 
@@ -36,6 +36,11 @@ async def upload_file(
             userHash=userHash,
             background_tasks=background_tasks,
         )
+    except UserStorageLimitError as e:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=str(e),
+        )
     except AgentError as e:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
@@ -53,6 +58,11 @@ def chat(
 ):
     try:
         return service.chat(payload)
+    except UserStorageLimitError as e:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=str(e),
+        )
     except AgentError as e:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
@@ -75,6 +85,11 @@ def list_files(
         )
     try:
         files = service.list_files(userHash)
+    except UserStorageLimitError as e:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=str(e),
+        )
     except AgentError as e:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,

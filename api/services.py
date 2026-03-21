@@ -5,8 +5,15 @@ from schemas.chat_request import ChatRequest
 from schemas.chat_response import ChatResponse
 from schemas.upload_response import UploadResponse
 from schemas.file_item import FileItem
-from api.exceptions import AgentError
-from api.ingestion.constants import ERROR_NO_TEXT, UPLOAD_QUEUED_MESSAGE, UPLOAD_SUCCESS_MESSAGE
+from api.exceptions import AgentError, UserStorageLimitError
+from api.ingestion.constants import (
+    ERROR_FILE_TOO_LARGE,
+    ERROR_MAX_USER_STORAGE,
+    ERROR_NO_TEXT,
+    MAX_USER_STORAGE_BYTES,
+    UPLOAD_QUEUED_MESSAGE,
+    UPLOAD_SUCCESS_MESSAGE,
+)
 from api.ingestion.file_utils import (
     build_metadata,
     cleanup_paths,
@@ -17,7 +24,12 @@ from api.ingestion.file_utils import (
     write_temp_markdown,
 )
 from api.ingestion.indexer import index_markdown_file
-from api.ingestion.job_store import create_job, list_jobs_for_user, update_job
+from api.ingestion.job_store import (
+    create_job,
+    get_total_size_for_user,
+    list_jobs_for_user,
+    update_job,
+)
 from api.ingestion.text_extractors import extract_text
 from vectordb.files_repository import list_files_for_user
 
@@ -46,6 +58,14 @@ class LeiService:
         filename = file.filename or ""
         ext = validate_extension(filename)
         data = await read_upload_data(file)
+        size = len(data)
+
+        if size > MAX_USER_STORAGE_BYTES:
+            raise UserStorageLimitError(ERROR_FILE_TOO_LARGE)
+
+        total_size = get_total_size_for_user(normalized_user_hash)
+        if total_size + size > MAX_USER_STORAGE_BYTES:
+            raise UserStorageLimitError(ERROR_MAX_USER_STORAGE)
 
         job = create_job(
             normalized_user_hash,
@@ -93,6 +113,14 @@ class LeiService:
         filename = file.filename or ""
         ext = validate_extension(filename)
         data = await read_upload_data(file)
+        size = len(data)
+
+        if size > MAX_USER_STORAGE_BYTES:
+            raise UserStorageLimitError(ERROR_FILE_TOO_LARGE)
+
+        total_size = get_total_size_for_user(normalized_user_hash)
+        if total_size + size > MAX_USER_STORAGE_BYTES:
+            raise UserStorageLimitError(ERROR_MAX_USER_STORAGE)
 
         await self._process_upload_data(
             data,

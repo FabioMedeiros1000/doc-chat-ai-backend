@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import List, Optional
 from uuid import uuid4
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from db.models import IngestionJob
 from db.session import get_session
@@ -77,3 +77,18 @@ def list_jobs_for_user(user_hash: str) -> List[IngestionJob]:
         return list(session.execute(stmt).scalars().all())
     finally:
         session.close()
+
+def get_total_size_for_user(user_hash: str) -> int:
+    session = get_session()
+    try:
+        statuses = ("queued", "processing", "ready")
+        stmt = (
+            select(func.coalesce(func.sum(IngestionJob.size), 0))
+            .where(IngestionJob.user_hash == user_hash)
+            .where(IngestionJob.status.in_(statuses))
+        )
+        result = session.execute(stmt).scalar_one()
+        return int(result or 0)
+    finally:
+        session.close()
+
