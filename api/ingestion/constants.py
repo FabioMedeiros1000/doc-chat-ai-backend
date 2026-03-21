@@ -2,6 +2,7 @@ ALLOWED_EXTENSIONS = {".pdf", ".docx", ".txt"}
 
 UPLOAD_SOURCE = "upload"
 UPLOAD_SUCCESS_MESSAGE = "File indexed successfully."
+UPLOAD_QUEUED_MESSAGE = "Seu arquivo esta sendo salvo e processado para leitura da IA."
 
 ERROR_UNSUPPORTED_FORMAT = "Unsupported format. Send .pdf, .docx or .txt."
 ERROR_EMPTY_FILE = "Empty file."

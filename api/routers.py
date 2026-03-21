@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status, HTTPException, UploadFile, File, Form, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, status, HTTPException, UploadFile, File, Form, Query
 from functools import lru_cache
 
 from schemas.chat_request import ChatRequest
@@ -20,6 +20,7 @@ def get_law_service() -> LeiService:
     status_code=status.HTTP_200_OK,
 )
 async def upload_file(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     userHash: str | None = Form(None),
     service: LeiService = Depends(get_law_service),
@@ -30,9 +31,10 @@ async def upload_file(
             detail="userHash is required.",
         )
     try:
-        return await service.upload_file(
+        return await service.enqueue_upload(
             file,
             userHash=userHash,
+            background_tasks=background_tasks,
         )
     except AgentError as e:
         raise HTTPException(
@@ -78,11 +80,4 @@ def list_files(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=str(e)
         )
-    if not files:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No files found for userHash.",
-        )
     return files
-
-
