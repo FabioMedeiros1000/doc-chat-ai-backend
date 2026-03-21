@@ -14,6 +14,12 @@ class Settings(BaseSettings):
     QDRANT_URL: str = Field(..., env="QDRANT_URL")
     LLM_TTL_HOURS: int = Field(..., env="LLM_TTL_HOURS")
     API_PORT: int = Field(..., env="API_PORT")
+    MYSQL_HOST: str = Field(..., env="MYSQL_HOST")
+    MYSQL_PORT: int = Field(..., env="MYSQL_PORT")
+    MYSQL_DATABASE: str = Field(..., env="MYSQL_DATABASE")
+    MYSQL_USER: str = Field(..., env="MYSQL_USER")
+    MYSQL_PASSWORD: str = Field(..., env="MYSQL_PASSWORD")
+    MYSQL_ROOT_PASSWORD: str = Field(..., env="MYSQL_ROOT_PASSWORD")
 
     model_config = {
         "env_file": ".env",
