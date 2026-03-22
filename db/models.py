@@ -17,5 +17,6 @@ class IngestionJob(Base):
     status = Column(String(32), nullable=False, index=True)
     error_message = Column(Text, nullable=True)
     content_hash = Column(String(128), nullable=True, index=True)
+    metadata_hash = Column(String(128), nullable=False, index=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)

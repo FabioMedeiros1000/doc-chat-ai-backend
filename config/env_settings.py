@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     MYSQL_USER: str = Field(..., env="MYSQL_USER")
     MYSQL_PASSWORD: str = Field(..., env="MYSQL_PASSWORD")
     MYSQL_ROOT_PASSWORD: str = Field(..., env="MYSQL_ROOT_PASSWORD")
+    CELERY_BROKER_URL: str = Field(..., env="CELERY_BROKER_URL")
+    CELERY_RESULT_BACKEND: str = Field(..., env="CELERY_RESULT_BACKEND")
 
     model_config = {
         "env_file": ".env",

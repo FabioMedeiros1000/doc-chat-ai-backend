@@ -20,6 +20,7 @@ def create_job(
     content_type: Optional[str],
     size: int,
     file_path: str,
+    metadata_hash: str,
 ) -> IngestionJob:
     job_id = f"job_{uuid4().hex}"
     now = _utc_now()
@@ -30,6 +31,7 @@ def create_job(
         content_type=content_type,
         size=size,
         file_path=file_path,
+        metadata_hash=metadata_hash,
         status="queued",
         error_message=None,
         content_hash=None,
@@ -115,6 +117,22 @@ def get_job(job_id: str) -> Optional[IngestionJob]:
     session = get_session()
     try:
         return session.get(IngestionJob, job_id)
+    finally:
+        session.close()
+
+def find_job_by_metadata_hash(user_hash: str, metadata_hash: str) -> Optional[IngestionJob]:
+    session = get_session()
+    try:
+        statuses = ("queued", "processing", "ready")
+        stmt = (
+            select(IngestionJob)
+            .where(IngestionJob.user_hash == user_hash)
+            .where(IngestionJob.metadata_hash == metadata_hash)
+            .where(IngestionJob.status.in_(statuses))
+            .order_by(IngestionJob.updated_at.desc())
+            .limit(1)
+        )
+        return session.execute(stmt).scalars().first()
     finally:
         session.close()
 

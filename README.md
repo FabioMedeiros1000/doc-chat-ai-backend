@@ -62,9 +62,9 @@ Windows:
 
 ### Como baixar as dependências
 
-````powershell
+```powershell
 uv sync
-``
+```
 
 ### Subir a API
 
@@ -72,4 +72,10 @@ Com o ambiente virtual ativado, execute:
 
 ```powershell
 uvicorn api.main:app
-````
+```
+
+### Subir o celery
+
+```powershell
+python -m celery -A celery_app worker --loglevel=info --pool=solo
+```

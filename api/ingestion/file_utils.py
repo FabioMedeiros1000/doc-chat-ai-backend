@@ -96,3 +96,9 @@ async def write_upload_stream(file: UploadFile, suffix: str, max_bytes: Optional
         raise AgentError(ERROR_EMPTY_FILE)
     return Path(tmp.name), size
 
+def compute_metadata_hash(filename: str, content_type: str | None, size: int) -> str:
+    normalized_name = (filename or "").strip().lower()
+    normalized_type = (content_type or "").strip().lower()
+    payload = f"{normalized_name}|{normalized_type}|{size}"
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
