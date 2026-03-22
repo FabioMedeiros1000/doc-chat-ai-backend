@@ -19,6 +19,7 @@ def create_job(
     filename: str,
     content_type: Optional[str],
     size: int,
+    file_path: str,
 ) -> IngestionJob:
     job_id = f"job_{uuid4().hex}"
     now = _utc_now()
@@ -28,6 +29,7 @@ def create_job(
         filename=filename,
         content_type=content_type,
         size=size,
+        file_path=file_path,
         status="queued",
         error_message=None,
         content_hash=None,
@@ -89,6 +91,30 @@ def get_total_size_for_user(user_hash: str) -> int:
         )
         result = session.execute(stmt).scalar_one()
         return int(result or 0)
+    finally:
+        session.close()
+
+
+
+
+def delete_jobs_for_user(user_hash: str, content_hash: str) -> int:
+    session = get_session()
+    try:
+        count = (
+            session.query(IngestionJob)
+            .filter(IngestionJob.user_hash == user_hash)
+            .filter(IngestionJob.content_hash == content_hash)
+            .delete(synchronize_session=False)
+        )
+        session.commit()
+        return int(count or 0)
+    finally:
+        session.close()
+
+def get_job(job_id: str) -> Optional[IngestionJob]:
+    session = get_session()
+    try:
+        return session.get(IngestionJob, job_id)
     finally:
         session.close()
 

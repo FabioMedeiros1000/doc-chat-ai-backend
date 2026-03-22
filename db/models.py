@@ -11,6 +11,7 @@ class IngestionJob(Base):
     job_id = Column(String(64), primary_key=True)
     user_hash = Column(String(128), nullable=False, index=True)
     filename = Column(String(512), nullable=False)
+    file_path = Column(String(1024), nullable=False)
     content_type = Column(String(255), nullable=True)
     size = Column(Integer, nullable=False)
     status = Column(String(32), nullable=False, index=True)

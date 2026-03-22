@@ -6,11 +6,12 @@ from datetime import datetime, timezone
 
 from fastapi import UploadFile
 
-from api.exceptions import AgentError
+from api.exceptions import AgentError, UserStorageLimitError
 from api.ingestion.constants import (
     ALLOWED_EXTENSIONS,
     ERROR_EMPTY_FILE,
     ERROR_UNSUPPORTED_FORMAT,
+    ERROR_FILE_TOO_LARGE,
     UPLOAD_SOURCE,
 )
 
@@ -75,3 +76,23 @@ def cleanup_paths(*paths: Optional[Path]) -> None:
     for path in paths:
         if path and path.exists():
             path.unlink(missing_ok=True)
+
+async def write_upload_stream(file: UploadFile, suffix: str, max_bytes: Optional[int] = None) -> tuple[Path, int]:
+    size = 0
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        while True:
+            chunk = await file.read(1024 * 1024)
+            if not chunk:
+                break
+            tmp.write(chunk)
+            size += len(chunk)
+            if max_bytes is not None and size > max_bytes:
+                path = Path(tmp.name)
+                cleanup_paths(path)
+                raise UserStorageLimitError(ERROR_FILE_TOO_LARGE)
+    if size == 0:
+        path = Path(tmp.name)
+        cleanup_paths(path)
+        raise AgentError(ERROR_EMPTY_FILE)
+    return Path(tmp.name), size
+
