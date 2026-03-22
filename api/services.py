@@ -1,13 +1,15 @@
+from pathlib import Path
+
 from fastapi import BackgroundTasks, UploadFile
 from agno.agent import RunOutput
 
 from schemas.chat_request import ChatRequest
 from schemas.chat_response import ChatResponse
 from schemas.upload_response import UploadResponse
+from schemas.delete_response import DeleteResponse
 from schemas.file_item import FileItem
 from api.exceptions import AgentError, UserStorageLimitError
 from api.ingestion.constants import (
-    ERROR_FILE_TOO_LARGE,
     ERROR_MAX_USER_STORAGE,
     ERROR_NO_TEXT,
     MAX_USER_STORAGE_BYTES,
@@ -18,20 +20,19 @@ from api.ingestion.file_utils import (
     build_metadata,
     cleanup_paths,
     compute_text_hash,
-    read_upload_data,
     validate_extension,
-    write_temp_bytes,
     write_temp_markdown,
+    write_upload_stream,
 )
 from api.ingestion.indexer import index_markdown_file
 from api.ingestion.job_store import (
     create_job,
+    delete_jobs_for_user,
     get_total_size_for_user,
-    list_jobs_for_user,
     update_job,
 )
 from api.ingestion.text_extractors import extract_text
-from vectordb.files_repository import list_files_for_user
+from vectordb.files_repository import list_files_for_user, delete_file_for_user
 
 from agents.chat_responder import get_chat_responder_agent
 
@@ -57,41 +58,41 @@ class LeiService:
 
         filename = file.filename or ""
         ext = validate_extension(filename)
-        data = await read_upload_data(file)
-        size = len(data)
-
-        if size > MAX_USER_STORAGE_BYTES:
-            raise UserStorageLimitError(ERROR_FILE_TOO_LARGE)
+        tmp_path, size = await write_upload_stream(file, ext, MAX_USER_STORAGE_BYTES)
 
         total_size = get_total_size_for_user(normalized_user_hash)
         if total_size + size > MAX_USER_STORAGE_BYTES:
+            cleanup_paths(tmp_path)
             raise UserStorageLimitError(ERROR_MAX_USER_STORAGE)
 
         job = create_job(
             normalized_user_hash,
             filename,
             file.content_type,
-            size=len(data),
+            size=size,
+            file_path=str(tmp_path),
         )
 
         if background_tasks is None:
             await self._process_upload_data(
-                data,
+                str(tmp_path),
                 ext,
                 filename,
                 file.content_type,
                 normalized_user_hash,
                 job.job_id,
+                size,
             )
         else:
             background_tasks.add_task(
                 self._process_upload_data,
-                data,
+                str(tmp_path),
                 ext,
                 filename,
                 file.content_type,
                 normalized_user_hash,
                 job.job_id,
+                size,
             )
 
         return UploadResponse(
@@ -112,42 +113,41 @@ class LeiService:
 
         filename = file.filename or ""
         ext = validate_extension(filename)
-        data = await read_upload_data(file)
-        size = len(data)
-
-        if size > MAX_USER_STORAGE_BYTES:
-            raise UserStorageLimitError(ERROR_FILE_TOO_LARGE)
+        tmp_path, size = await write_upload_stream(file, ext, MAX_USER_STORAGE_BYTES)
 
         total_size = get_total_size_for_user(normalized_user_hash)
         if total_size + size > MAX_USER_STORAGE_BYTES:
+            cleanup_paths(tmp_path)
             raise UserStorageLimitError(ERROR_MAX_USER_STORAGE)
 
         await self._process_upload_data(
-            data,
+            str(tmp_path),
             ext,
             filename,
             file.content_type,
             normalized_user_hash,
             None,
+            size,
         )
 
         return UploadResponse(success=True, message=UPLOAD_SUCCESS_MESSAGE)
 
     async def _process_upload_data(
         self,
-        data: bytes,
+        file_path: str,
         ext: str,
         filename: str,
         content_type: str | None,
         user_hash: str,
         job_id: str | None,
+        size: int,
     ) -> None:
         tmp_path = None
         md_path = None
         if job_id:
             update_job(job_id, status="processing")
         try:
-            tmp_path = write_temp_bytes(data, ext)
+            tmp_path = Path(file_path)
 
             text = extract_text(tmp_path)
             if not text or not text.strip():
@@ -161,7 +161,7 @@ class LeiService:
                 content_type,
                 content_hash,
                 user_hash,
-                size=len(data),
+                size=size,
             )
             md_path = write_temp_markdown(text)
 
@@ -191,25 +191,28 @@ class LeiService:
             cleanup_paths(tmp_path, md_path)
 
     def list_files(self, userHash: str) -> list[FileItem]:
-        files = list_files_for_user(userHash)
-        jobs = list_jobs_for_user(userHash)
+        return list_files_for_user(userHash)
 
-        if not jobs:
-            return files
 
-        ready_ids = {file.id for file in files if file.id}
-        job_items: list[FileItem] = []
-        for job in jobs:
-            if job.status == "ready" and job.content_hash and job.content_hash in ready_ids:
-                continue
-            job_items.append(
-                FileItem(
-                    id=job.content_hash if job.status == "ready" else None,
-                    name=job.filename,
-                    status=job.status,
-                    job_id=job.job_id,
-                    error_message=job.error_message,
-                )
-            )
+    def delete_file(self, file_id: str, userHash: str) -> DeleteResponse:
+        if not userHash or not userHash.strip():
+            raise AgentError("userHash is required.")
+        if not file_id or not file_id.strip():
+            raise AgentError("file_id is required.")
 
-        return files
+        normalized_user_hash = userHash.strip()
+        normalized_file_id = file_id.strip()
+        content_hash = (
+            normalized_file_id.replace("upload_", "", 1)
+            if normalized_file_id.startswith("upload_")
+            else normalized_file_id
+        )
+
+        delete_file_for_user(normalized_user_hash, content_hash)
+        delete_jobs_for_user(normalized_user_hash, content_hash)
+
+        return DeleteResponse(
+            success=True,
+            message="File deleted successfully.",
+            content_hash=content_hash,
+        )

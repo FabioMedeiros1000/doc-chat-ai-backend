@@ -4,6 +4,7 @@ from functools import lru_cache
 from schemas.chat_request import ChatRequest
 from schemas.chat_response import ChatResponse
 from schemas.upload_response import UploadResponse
+from schemas.delete_response import DeleteResponse
 from schemas.file_item import FileItem
 from api.services import LeiService
 from api.exceptions import AgentError, UserStorageLimitError
@@ -96,3 +97,26 @@ def list_files(
             detail=str(e)
         )
     return files
+
+@router.delete(
+    "/files/{file_id}",
+    response_model=DeleteResponse,
+    status_code=status.HTTP_200_OK,
+)
+def delete_file(
+    file_id: str,
+    userHash: str = Query(...),
+    service: LeiService = Depends(get_law_service),
+):
+    if not userHash or not userHash.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="userHash is required.",
+        )
+    try:
+        return service.delete_file(file_id, userHash)
+    except AgentError as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(e)
+        )
