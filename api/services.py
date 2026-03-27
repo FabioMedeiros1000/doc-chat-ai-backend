@@ -97,47 +97,6 @@ class LeiService:
             status=job.status,
         )
 
-    async def upload_file(
-        self,
-        file: UploadFile,
-        userHash: str | None = None,
-    ) -> UploadResponse:
-        if not userHash or not userHash.strip():
-            raise AgentError("userHash is required.")
-        normalized_user_hash = userHash.strip()
-
-        filename = file.filename or ""
-        ext = validate_extension(filename)
-        tmp_path, size = await write_upload_stream(file, ext, MAX_USER_STORAGE_BYTES)
-
-        metadata_hash = compute_metadata_hash(filename, file.content_type, size)
-        existing = find_job_by_metadata_hash(normalized_user_hash, metadata_hash)
-        if existing:
-            cleanup_paths(tmp_path)
-            return UploadResponse(
-                success=True,
-                message="Arquivo ja enviado ou em processamento.",
-                job_id=existing.job_id,
-                status=existing.status if existing.status in ("queued", "processing") else "processing",
-            )
-
-        total_size = get_total_size_for_user(normalized_user_hash)
-        if total_size + size > MAX_USER_STORAGE_BYTES:
-            cleanup_paths(tmp_path)
-            raise UserStorageLimitError(ERROR_MAX_USER_STORAGE)
-
-        await self._process_upload_data(
-            str(tmp_path),
-            ext,
-            filename,
-            file.content_type,
-            normalized_user_hash,
-            None,
-            size,
-        )
-
-        return UploadResponse(success=True, message=UPLOAD_SUCCESS_MESSAGE)
-
     def process_upload_job(self, job_id: str) -> None:
         job = get_job(job_id)
         if not job:

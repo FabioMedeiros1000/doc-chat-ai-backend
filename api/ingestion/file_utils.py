@@ -23,19 +23,6 @@ def validate_extension(filename: str) -> str:
     return ext
 
 
-async def read_upload_data(file: UploadFile) -> bytes:
-    data = await file.read()
-    if not data:
-        raise AgentError(ERROR_EMPTY_FILE)
-    return data
-
-
-def write_temp_bytes(data: bytes, suffix: str) -> Path:
-    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-        tmp.write(data)
-        return Path(tmp.name)
-
-
 def write_temp_markdown(text: str) -> Path:
     with tempfile.NamedTemporaryFile(delete=False, suffix=".md") as md:
         md.write(text.encode("utf-8"))

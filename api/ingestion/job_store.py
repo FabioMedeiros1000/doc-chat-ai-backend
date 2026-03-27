@@ -73,15 +73,6 @@ def update_job(
     finally:
         session.close()
 
-
-def list_jobs_for_user(user_hash: str) -> List[IngestionJob]:
-    session = get_session()
-    try:
-        stmt = select(IngestionJob).where(IngestionJob.user_hash == user_hash)
-        return list(session.execute(stmt).scalars().all())
-    finally:
-        session.close()
-
 def get_total_size_for_user(user_hash: str) -> int:
     session = get_session()
     try:
