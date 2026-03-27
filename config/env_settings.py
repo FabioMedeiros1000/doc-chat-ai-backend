@@ -10,7 +10,6 @@ class Settings(BaseSettings):
     Configurações gerais do projeto — centralização de variáveis de ambiente.
     """
     OPENAI_API_KEY: str = Field(..., env="OPENAI_API_KEY")
-    FIRECRAWL_API_KEY: str = Field(..., env="FIRECRAWL_API_KEY")
     QDRANT_URL: str = Field(..., env="QDRANT_URL")
     LLM_TTL_HOURS: int = Field(..., env="LLM_TTL_HOURS")
     API_PORT: int = Field(..., env="API_PORT")

@@ -14,7 +14,6 @@ from api.ingestion.constants import (
     ERROR_NO_TEXT,
     MAX_USER_STORAGE_BYTES,
     UPLOAD_QUEUED_MESSAGE,
-    UPLOAD_SUCCESS_MESSAGE,
 )
 from api.ingestion.file_utils import (
     build_metadata,
