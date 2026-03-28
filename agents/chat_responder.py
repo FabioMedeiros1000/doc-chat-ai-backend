@@ -12,12 +12,3 @@ def get_chat_responder_agent(knowledge) -> Agent:
     )
 
     return agent
-
-if __name__ == "__main__":
-    question = "Existem casos onde alguém do sexo masculino pode se aposentar com 15 anos de colaboração?"
-
-    agent = get_chat_responder_agent(knowledge=None)
-
-    run: RunOutput = agent.run(question)
-
-    print(run.content)

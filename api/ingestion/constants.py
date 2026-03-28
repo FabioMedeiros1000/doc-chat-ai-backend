@@ -1,7 +1,6 @@
 ALLOWED_EXTENSIONS = {".pdf", ".docx", ".txt"}
 
 UPLOAD_SOURCE = "upload"
-UPLOAD_SUCCESS_MESSAGE = "File indexed successfully."
 UPLOAD_QUEUED_MESSAGE = "Seu arquivo esta sendo salvo e processado para leitura da IA."
 
 MAX_USER_STORAGE_BYTES = 7 * 1024 * 1024
