@@ -74,8 +74,15 @@ Com o ambiente virtual ativado, execute:
 uvicorn api.main:app
 ```
 
+### Persistência de sessão do Agno
+
+O histórico/sessão do Agno é persistido no mesmo banco definido em `MYSQL_DATABASE`.
+Ao subir a API pela primeira vez, a biblioteca cria automaticamente as tabelas auxiliares dela nesse schema, como `agno_sessions`.
+
+````
+
 ### Subir o celery
 
 ```powershell
 python -m celery -A celery_app worker --loglevel=info --pool=solo
-```
+````

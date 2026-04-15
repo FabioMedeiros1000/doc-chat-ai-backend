@@ -35,6 +35,9 @@ def get_session():
 def get_db_for_agent():
     settings = get_settings()
     db_url = f"mysql+pymysql://{settings.MYSQL_USER}:{settings.MYSQL_PASSWORD}@{settings.MYSQL_HOST}:{settings.MYSQL_PORT}/{settings.MYSQL_DATABASE}"
-    db = MySQLDb(db_url=db_url)
+    db = MySQLDb(
+        db_url=db_url,
+        db_schema=settings.MYSQL_DATABASE,
+    )
 
     return db
