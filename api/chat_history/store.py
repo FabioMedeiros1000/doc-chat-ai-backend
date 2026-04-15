@@ -108,3 +108,20 @@ class ChatHistoryStore:
             return int(result or 0)
         finally:
             session.close()
+
+    def delete_messages_for_user(self, user_hash: str) -> int:
+        normalized_user_hash = user_hash.strip() if user_hash else ""
+        if not normalized_user_hash:
+            raise AgentError("userHash is required.")
+
+        session = get_session()
+        try:
+            count = (
+                session.query(ChatMessage)
+                .filter(ChatMessage.user_hash == normalized_user_hash)
+                .delete(synchronize_session=False)
+            )
+            session.commit()
+            return int(count or 0)
+        finally:
+            session.close()

@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, status, HTTPException, UploadFile, File,
 from functools import lru_cache
 
 from schemas.chat_request import ChatRequest
+from schemas.chat_history_delete_response import ChatHistoryDeleteResponse
 from schemas.chat_message_item import ChatMessageItem
 from schemas.chat_response import ChatResponse
 from schemas.upload_response import UploadResponse
@@ -90,6 +91,28 @@ def list_chat_history(
         )
     try:
         return service.list_chat_history(userHash)
+    except AgentError as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(e)
+        )
+
+@router.delete(
+    "/chat/history",
+    response_model=ChatHistoryDeleteResponse,
+    status_code=status.HTTP_200_OK,
+)
+def delete_chat_history(
+    userHash: str = Query(...),
+    service: LeiService = Depends(get_law_service),
+):
+    if not userHash or not userHash.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="userHash is required.",
+        )
+    try:
+        return service.delete_chat_history(userHash)
     except AgentError as e:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,

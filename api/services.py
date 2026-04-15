@@ -2,6 +2,7 @@ from fastapi import UploadFile
 from agno.agent import RunOutput
 
 from schemas.chat_request import ChatRequest
+from schemas.chat_history_delete_response import ChatHistoryDeleteResponse
 from schemas.chat_message_item import ChatMessageItem
 from schemas.chat_response import ChatResponse
 from schemas.upload_response import UploadResponse
@@ -103,6 +104,19 @@ class LeiService:
 
     def list_chat_history(self, userHash: str) -> list[ChatMessageItem]:
         return self._chat_history_store.get_messages_for_user(userHash)
+
+    def delete_chat_history(self, userHash: str) -> ChatHistoryDeleteResponse:
+        normalized_user_hash = userHash.strip() if userHash else ""
+        if not normalized_user_hash:
+            raise AgentError("userHash is required.")
+
+        deleted_count = self._chat_history_store.delete_messages_for_user(normalized_user_hash)
+        return ChatHistoryDeleteResponse(
+            success=True,
+            message="Chat history deleted successfully.",
+            deleted_count=deleted_count,
+            user_hash=normalized_user_hash,
+        )
 
     def delete_file(self, file_id: str, userHash: str) -> DeleteResponse:
         if not userHash or not userHash.strip():

@@ -88,6 +88,12 @@ O endpoint abaixo retorna as mensagens de um usuário em ordem cronológica:
 GET /chat/history?userHash=<USER_HASH>
 ```
 
+O endpoint abaixo apaga todo o histórico do usuário:
+
+```http
+DELETE /chat/history?userHash=<USER_HASH>
+```
+
 O limite acumulado de tokens por usuário pode ser configurado com a variável:
 
 ```env
