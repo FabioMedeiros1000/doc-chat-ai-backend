@@ -1,5 +1,6 @@
 from fastapi import UploadFile
 from agno.agent import RunOutput
+from openai import AuthenticationError
 
 from schemas.chat_request import ChatRequest
 from schemas.chat_history_delete_response import ChatHistoryDeleteResponse
@@ -30,19 +31,26 @@ class LeiService:
         self._chat_history_store = ChatHistoryStore()
         self._settings = get_settings()
 
-    def chat(self, payload: ChatRequest) -> ChatResponse:
+    def chat(self, payload: ChatRequest, api_key: str | None = None) -> ChatResponse:
         user_hash = payload.userHash.strip() if payload.userHash else ""
         if not user_hash:
             raise AgentError("userHash is required.")
 
-        total_tokens = self._chat_history_store.get_total_tokens_for_user(user_hash)
-        if total_tokens >= self._settings.USER_MAX_CHAT_TOKENS:
-            raise UserTokenLimitError("User token limit exceeded.")
+        effective_api_key = api_key.strip() if api_key and api_key.strip() else None
+
+        if effective_api_key is None:
+            total_tokens = self._chat_history_store.get_total_tokens_for_user(user_hash)
+            if total_tokens >= self._settings.USER_MAX_CHAT_TOKENS:
+                raise UserTokenLimitError("User token limit exceeded.")
 
         chat_responder = get_chat_responder_agent(
-            knowledge=self._knowledge_provider.get_knowledge(user_hash)
+            knowledge=self._knowledge_provider.get_knowledge(user_hash, api_key=effective_api_key),
+            api_key=effective_api_key,
         )
-        result: RunOutput = chat_responder.run(input=payload.question, user_id=user_hash)
+        try:
+            result: RunOutput = chat_responder.run(input=payload.question, user_id=user_hash)
+        except AuthenticationError as exc:
+            raise AgentError("Invalid OpenAI API key.") from exc
 
         content = result.content if isinstance(result.content, str) else str(result.content)
         metrics = result.metrics
@@ -64,9 +72,9 @@ class LeiService:
             status="completed",
             model=model,
             run_id=run_id,
-            input_tokens=getattr(metrics, "input_tokens", None),
-            output_tokens=getattr(metrics, "output_tokens", None),
-            total_tokens=getattr(metrics, "total_tokens", None),
+            input_tokens=None if effective_api_key is not None else getattr(metrics, "input_tokens", None),
+            output_tokens=None if effective_api_key is not None else getattr(metrics, "output_tokens", None),
+            total_tokens=None if effective_api_key is not None else getattr(metrics, "total_tokens", None),
         )
 
         return ChatResponse(answer=content)
@@ -75,10 +83,12 @@ class LeiService:
         self,
         file: UploadFile,
         userHash: str | None = None,
+        api_key: str | None = None,
     ) -> UploadResponse:
         if not userHash or not userHash.strip():
             raise AgentError("userHash is required.")
         normalized_user_hash = userHash.strip()
+        effective_api_key = api_key.strip() if api_key and api_key.strip() else None
 
         result = await self._upload_orchestrator.enqueue_upload(
             file,
@@ -87,7 +97,7 @@ class LeiService:
         )
 
         if not result.is_existing and result.job_id:
-            celery_app.send_task("process_upload", args=[result.job_id])
+            celery_app.send_task("process_upload", args=[result.job_id, effective_api_key])
 
         return UploadResponse(
             success=result.success,
@@ -96,8 +106,8 @@ class LeiService:
             status=result.status,
         )
 
-    def process_upload_job(self, job_id: str) -> None:
-        self._upload_orchestrator.process_upload_job(job_id)
+    def process_upload_job(self, job_id: str, api_key: str | None = None) -> None:
+        self._upload_orchestrator.process_upload_job(job_id, api_key=api_key)
 
     def list_files(self, userHash: str) -> list[FileItem]:
         return self._file_repository.list_files_for_user(userHash)

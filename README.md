@@ -100,6 +100,16 @@ O limite acumulado de tokens por usuário pode ser configurado com a variável:
 USER_MAX_CHAT_TOKENS=50000
 ```
 
+No `POST /chat`, você também pode enviar uma chave própria da OpenAI no header abaixo:
+
+```http
+X-OpenAI-API-Key: <OPENAI_API_KEY>
+```
+
+Quando esse header é enviado, a requisição usa a chave do usuário e ignora o limite acumulado de tokens da aplicação.
+
+No `POST /upload`, o mesmo header pode ser enviado para que os embeddings sejam gerados com a chave do usuário. Nesse caso, o limite de armazenamento do usuário continua sendo aplicado normalmente.
+
 ### Subir o celery
 
 ```powershell

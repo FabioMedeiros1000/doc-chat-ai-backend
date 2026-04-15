@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status, HTTPException, UploadFile, File, Form, Query
+from fastapi import APIRouter, Depends, Header, status, HTTPException, UploadFile, File, Form, Query
 from functools import lru_cache
 
 from schemas.chat_request import ChatRequest
@@ -25,6 +25,7 @@ def get_law_service() -> LeiService:
 async def upload_file(
     file: UploadFile = File(...),
     userHash: str | None = Form(None),
+    x_openai_api_key: str | None = Header(None, alias="X-OpenAI-API-Key"),
     service: LeiService = Depends(get_law_service),
 ):
     if not userHash or not userHash.strip():
@@ -36,6 +37,7 @@ async def upload_file(
         return await service.enqueue_upload(
             file,
             userHash=userHash,
+            api_key=x_openai_api_key,
         )
     except UserStorageLimitError as e:
         raise HTTPException(
@@ -55,10 +57,11 @@ async def upload_file(
 )
 def chat(
     payload: ChatRequest,
+    x_openai_api_key: str | None = Header(None, alias="X-OpenAI-API-Key"),
     service: LeiService = Depends(get_law_service),
 ):
     try:
-        return service.chat(payload)
+        return service.chat(payload, api_key=x_openai_api_key)
     except UserTokenLimitError as e:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,

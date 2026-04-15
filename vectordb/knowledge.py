@@ -1,6 +1,6 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
-from functools import lru_cache
+from typing import Optional
 
 from agno.knowledge.knowledge import Knowledge
 
@@ -16,12 +16,12 @@ class KnowledgeProvider:
             return user_hash.strip()
         return None
 
-    def get_knowledge(self, userHash: str | None = None) -> Knowledge | None:
+    def get_knowledge(self, userHash: str | None = None, api_key: Optional[str] = None) -> Knowledge | None:
         normalized = self._normalize_user_hash(userHash)
         if normalized:
             return Knowledge(
                 name=userHash,
                 description=f"Vector store do usuario com a hash {userHash}",
-                vector_db=self._vector_db_connection.get_vector_db(userHash=normalized),
+                vector_db=self._vector_db_connection.get_vector_db(userHash=normalized, api_key=api_key),
             )
         return None

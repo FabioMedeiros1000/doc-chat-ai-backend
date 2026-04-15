@@ -1,7 +1,8 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import asyncio
 from pathlib import Path
+from typing import Optional
 
 from fastapi import UploadFile
 
@@ -91,16 +92,16 @@ class UploadOrchestrator:
             is_existing=False,
         )
 
-    def process_upload_job(self, job_id: str) -> None:
+    def process_upload_job(self, job_id: str, api_key: Optional[str] = None) -> None:
         job = self._job_store.get_job(job_id)
         if not job:
             return
         try:
-            self._process_job(job)
+            self._process_job(job, api_key=api_key)
         except Exception:
             return
 
-    def _process_job(self, job) -> None:
+    def _process_job(self, job, api_key: Optional[str] = None) -> None:
         file_path = job.file_path
         tmp_path: Path | None = None
         md_path: Path | None = None
@@ -130,6 +131,7 @@ class UploadOrchestrator:
                         content_hash,
                         metadata,
                         userHash=job.user_hash,
+                        api_key=api_key,
                     )
                 )
             except Exception as e:

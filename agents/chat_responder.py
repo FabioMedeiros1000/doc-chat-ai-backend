@@ -3,9 +3,9 @@ from config.llm_settings import get_llm, LLMModel
 from prompts.chat_responder import instructions
 from db.session import get_db_for_agent
 
-def get_chat_responder_agent(knowledge) -> Agent:
+def get_chat_responder_agent(knowledge, api_key: str | None = None) -> Agent:
     agent = Agent(
-        model=get_llm(LLMModel.SMALL),
+        model=get_llm(LLMModel.SMALL, api_key=api_key),
         instructions=instructions,
         cache_session=True,
         knowledge=knowledge,

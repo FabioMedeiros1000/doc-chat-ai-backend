@@ -1,8 +1,9 @@
-﻿from pathlib import Path
-from typing import Dict
+from pathlib import Path
+from typing import Dict, Optional
 
-from agno.knowledge.reader.markdown_reader import MarkdownReader
 from agno.knowledge.chunking.recursive import RecursiveChunking
+from agno.knowledge.reader.markdown_reader import MarkdownReader
+from openai import AuthenticationError
 
 from api.exceptions import AgentError
 from vectordb.knowledge import KnowledgeProvider
@@ -18,12 +19,13 @@ class Indexer:
         content_hash: str,
         metadata: Dict,
         userHash: str | None = None,
+        api_key: Optional[str] = None,
     ) -> None:
         try:
             reader = MarkdownReader(
                 chunking_strategy=RecursiveChunking(chunk_size=700, overlap=100)
             )
-            knowledge = self._knowledge_provider.get_knowledge(userHash)
+            knowledge = self._knowledge_provider.get_knowledge(userHash, api_key=api_key)
 
             if knowledge is None:
                 raise AgentError(
@@ -37,8 +39,7 @@ class Indexer:
                 metadata=metadata,
                 skip_if_exists=True,
             )
+        except AuthenticationError as e:
+            raise AgentError("Invalid OpenAI API key.") from e
         except Exception as e:
             raise AgentError(f"Error indexing file: {str(e)}") from e
-
-
-
