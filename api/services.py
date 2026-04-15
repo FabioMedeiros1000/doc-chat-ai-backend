@@ -25,10 +25,12 @@ class LeiService:
         self._job_store = JobStore()
 
     def chat(self, payload: ChatRequest) -> ChatResponse:
+        user_hash = payload.userHash
+        
         chat_responder = get_chat_responder_agent(
-            knowledge=self._knowledge_provider.get_knowledge(payload.userHash)
+            knowledge=self._knowledge_provider.get_knowledge(user_hash)
         )
-        result: RunOutput = chat_responder.run(input=payload.question)
+        result: RunOutput = chat_responder.run(input=payload.question, user_id=user_hash)
 
         return ChatResponse(answer=result.content)
 
