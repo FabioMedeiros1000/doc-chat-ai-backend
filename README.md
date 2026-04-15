@@ -22,7 +22,7 @@ python -m scripts.index_laws
 
 ### Executar os agentes
 
-Para rodar um agente específico, utilize o comando abaixo, informando o nome do arquivo do agente (sem a extensão .py):
+Para rodar um agente específico, utilize o comando abaixo, informando o nome do arquivo do agente sem a extensão `.py`:
 
 ```powershell
 python -m agents.<nome_do_arquivo_do_agente_sem_.py>
@@ -50,7 +50,7 @@ http://localhost:6333/dashboard
 uv venv
 ```
 
-**Observação**: Caso não tenha uv, você pode instalá-lo com **pip install uv**
+**Observação**: Caso não tenha `uv`, você pode instalá-lo com `pip install uv`.
 
 ### Ativar o ambiente virtual
 
@@ -79,10 +79,23 @@ uvicorn api.main:app
 O histórico/sessão do Agno é persistido no mesmo banco definido em `MYSQL_DATABASE`.
 Ao subir a API pela primeira vez, a biblioteca cria automaticamente as tabelas auxiliares dela nesse schema, como `agno_sessions`.
 
-````
+### Histórico do chat e limite de tokens
+
+O histórico do chat da aplicação é salvo na tabela `chat_messages`.
+O endpoint abaixo retorna as mensagens de um usuário em ordem cronológica:
+
+```http
+GET /chat/history?userHash=<USER_HASH>
+```
+
+O limite acumulado de tokens por usuário pode ser configurado com a variável:
+
+```env
+USER_MAX_CHAT_TOKENS=50000
+```
 
 ### Subir o celery
 
 ```powershell
 python -m celery -A celery_app worker --loglevel=info --pool=solo
-````
+```

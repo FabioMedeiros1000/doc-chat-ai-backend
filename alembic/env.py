@@ -6,7 +6,7 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 from db.base import Base
-from db.models import IngestionJob
+from db.models import ChatMessage, IngestionJob
 from db.session import _build_mysql_url
 
 # this is the Alembic Config object, which provides

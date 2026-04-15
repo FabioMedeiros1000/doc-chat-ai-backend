@@ -1,16 +1,19 @@
-﻿from fastapi import UploadFile
+from fastapi import UploadFile
 from agno.agent import RunOutput
 
 from schemas.chat_request import ChatRequest
+from schemas.chat_message_item import ChatMessageItem
 from schemas.chat_response import ChatResponse
 from schemas.upload_response import UploadResponse
 from schemas.delete_response import DeleteResponse
 from schemas.file_item import FileItem
-from api.exceptions import AgentError
+from api.chat_history.store import ChatHistoryStore
+from api.exceptions import AgentError, UserTokenLimitError
 from api.ingestion.constants import MAX_USER_STORAGE_BYTES
 from api.ingestion.orchestrator import UploadOrchestrator
 from api.ingestion.job_store import JobStore
 from celery_app import celery_app
+from config.env_settings import get_settings
 from vectordb.files_repository import FileRepository
 
 from agents.chat_responder import get_chat_responder_agent
@@ -23,16 +26,49 @@ class LeiService:
         self._knowledge_provider = KnowledgeProvider()
         self._file_repository = FileRepository()
         self._job_store = JobStore()
+        self._chat_history_store = ChatHistoryStore()
+        self._settings = get_settings()
 
     def chat(self, payload: ChatRequest) -> ChatResponse:
-        user_hash = payload.userHash
-        
+        user_hash = payload.userHash.strip() if payload.userHash else ""
+        if not user_hash:
+            raise AgentError("userHash is required.")
+
+        total_tokens = self._chat_history_store.get_total_tokens_for_user(user_hash)
+        if total_tokens >= self._settings.USER_MAX_CHAT_TOKENS:
+            raise UserTokenLimitError("User token limit exceeded.")
+
         chat_responder = get_chat_responder_agent(
             knowledge=self._knowledge_provider.get_knowledge(user_hash)
         )
         result: RunOutput = chat_responder.run(input=payload.question, user_id=user_hash)
 
-        return ChatResponse(answer=result.content)
+        content = result.content if isinstance(result.content, str) else str(result.content)
+        metrics = result.metrics
+        model = result.model
+        run_id = result.run_id
+
+        self._chat_history_store.create_message(
+            user_hash=user_hash,
+            role="user",
+            content=payload.question,
+            status="completed",
+            model=model,
+            run_id=run_id,
+        )
+        self._chat_history_store.create_message(
+            user_hash=user_hash,
+            role="assistant",
+            content=content,
+            status="completed",
+            model=model,
+            run_id=run_id,
+            input_tokens=getattr(metrics, "input_tokens", None),
+            output_tokens=getattr(metrics, "output_tokens", None),
+            total_tokens=getattr(metrics, "total_tokens", None),
+        )
+
+        return ChatResponse(answer=content)
 
     async def enqueue_upload(
         self,
@@ -64,6 +100,9 @@ class LeiService:
 
     def list_files(self, userHash: str) -> list[FileItem]:
         return self._file_repository.list_files_for_user(userHash)
+
+    def list_chat_history(self, userHash: str) -> list[ChatMessageItem]:
+        return self._chat_history_store.get_messages_for_user(userHash)
 
     def delete_file(self, file_id: str, userHash: str) -> DeleteResponse:
         if not userHash or not userHash.strip():

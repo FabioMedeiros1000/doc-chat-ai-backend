@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     MYSQL_ROOT_PASSWORD: str = Field(..., env="MYSQL_ROOT_PASSWORD")
     CELERY_BROKER_URL: str = Field(..., env="CELERY_BROKER_URL")
     CELERY_RESULT_BACKEND: str = Field(..., env="CELERY_RESULT_BACKEND")
+    USER_MAX_CHAT_TOKENS: int = Field(4000, env="USER_MAX_CHAT_TOKENS")
 
     model_config = {
         "env_file": ".env",
