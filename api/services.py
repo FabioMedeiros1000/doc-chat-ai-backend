@@ -35,6 +35,7 @@ class LeiService:
         user_hash = payload.userHash.strip() if payload.userHash else ""
         if not user_hash:
             raise AgentError("userHash is required.")
+        selected_document_ids = payload.documentIds or []
 
         effective_api_key = api_key.strip() if api_key and api_key.strip() else None
 
@@ -43,12 +44,26 @@ class LeiService:
             if total_tokens >= self._settings.USER_MAX_CHAT_TOKENS:
                 raise UserTokenLimitError("User token limit exceeded.")
 
+        if selected_document_ids:
+            valid_hashes = self._file_repository.list_ready_content_hashes_for_user(user_hash)
+            invalid_ids = sorted(doc_id for doc_id in selected_document_ids if doc_id not in valid_hashes)
+            if invalid_ids:
+                raise AgentError("Invalid documentIds for user.")
+
         chat_responder = get_chat_responder_agent(
-            knowledge=self._knowledge_provider.get_knowledge(user_hash, api_key=effective_api_key),
+            knowledge=self._knowledge_provider.get_knowledge(
+                user_hash,
+                api_key=effective_api_key,
+                document_ids=selected_document_ids,
+            ),
             api_key=effective_api_key,
         )
         try:
-            result: RunOutput = chat_responder.run(input=payload.question, user_id=user_hash)
+            result: RunOutput = chat_responder.run(
+                input=payload.question,
+                user_id=user_hash,
+                knowledge_filters={"meta_data.hash": selected_document_ids} if selected_document_ids else None,
+            )
         except AuthenticationError as exc:
             raise AgentError("Invalid OpenAI API key.") from exc
 

@@ -108,6 +108,19 @@ X-OpenAI-API-Key: <OPENAI_API_KEY>
 
 Quando esse header é enviado, a requisição usa a chave do usuário e ignora o limite acumulado de tokens da aplicação.
 
+No body do `POST /chat`, você pode filtrar quais documentos serão considerados na resposta:
+
+```json
+{
+  "question": "Qual o prazo de recurso?",
+  "userHash": "ab638b12-029c-445f-85ed-6ccd642d8ae9",
+  "documentIds": ["<CONTENT_HASH_1>", "<CONTENT_HASH_2>"]
+}
+```
+
+Os valores de `documentIds` devem ser IDs retornados em `GET /files` (`id = content_hash`) e pertencentes ao mesmo usuário.
+Quando `documentIds` não é enviado (ou vem vazio), o comportamento continua igual ao atual: o chat considera todos os documentos do usuário.
+
 No `POST /upload`, o mesmo header pode ser enviado para que os embeddings sejam gerados com a chave do usuário. Nesse caso, o limite de armazenamento do usuário continua sendo aplicado normalmente.
 
 ### Subir o celery

@@ -1,6 +1,6 @@
 ﻿from __future__ import annotations
 
-from typing import Dict, List
+from typing import Dict, List, Set
 
 from qdrant_client.http.models import FieldCondition, Filter, MatchValue
 from sqlalchemy import select
@@ -51,6 +51,24 @@ class FileRepository:
                 )
             )
         return items
+
+    def list_ready_content_hashes_for_user(self, user_hash: str) -> Set[str]:
+        if not user_hash or not user_hash.strip():
+            raise AgentError("userHash is required.")
+
+        session = get_session()
+        try:
+            stmt = (
+                select(IngestionJob.content_hash)
+                .where(IngestionJob.user_hash == user_hash.strip())
+                .where(IngestionJob.status == "ready")
+                .where(IngestionJob.content_hash.is_not(None))
+            )
+            rows = list(session.execute(stmt).scalars().all())
+        finally:
+            session.close()
+
+        return {row for row in rows if row}
 
     def delete_file_for_user(self, user_hash: str, content_hash: str) -> None:
         if not user_hash or not user_hash.strip():
