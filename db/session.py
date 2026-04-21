@@ -24,6 +24,7 @@ engine = create_engine(
     _build_mysql_url(),
     pool_pre_ping=True,
     pool_recycle=3600,
+    connect_args={"init_command": "SET time_zone = '+00:00'"},
 )
 
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
