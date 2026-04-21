@@ -11,3 +11,8 @@ class UserStorageLimitError(Exception):
 class UserTokenLimitError(Exception):
     """Limite de tokens do usuario excedido"""
     pass
+
+
+class InvalidApiKeyError(Exception):
+    """Chave de API invalida para o provider"""
+    pass

@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 
 class ChatMessageItem(BaseModel):
-    id: str
+    id: int
     role: Literal["user", "assistant"]
     content: str
     status: str

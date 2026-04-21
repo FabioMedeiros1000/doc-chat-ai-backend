@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
-from uuid import uuid4
 
 from sqlalchemy import func, select
 
@@ -14,7 +13,7 @@ from schemas.chat_message_item import ChatMessageItem
 
 class ChatHistoryStore:
     def _utc_now(self) -> datetime:
-        return datetime.utcnow()
+        return datetime.now(timezone.utc)
 
     def create_message(
         self,
@@ -41,7 +40,6 @@ class ChatHistoryStore:
             raise AgentError("content is required.")
 
         message = ChatMessage(
-            message_id=f"msg_{uuid4().hex}",
             user_hash=normalized_user_hash,
             role=role,
             content=content,
@@ -74,7 +72,7 @@ class ChatHistoryStore:
             stmt = (
                 select(ChatMessage)
                 .where(ChatMessage.user_hash == normalized_user_hash)
-                .order_by(ChatMessage.created_at.asc())
+                .order_by(ChatMessage.message_id.asc())
             )
             messages = list(session.execute(stmt).scalars().all())
         finally:

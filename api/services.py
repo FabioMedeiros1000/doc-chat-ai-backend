@@ -1,5 +1,6 @@
 from fastapi import UploadFile
 from agno.agent import RunOutput
+from agno.exceptions import ModelProviderError
 from openai import AuthenticationError
 
 from schemas.chat_request import ChatRequest
@@ -10,7 +11,7 @@ from schemas.upload_response import UploadResponse
 from schemas.delete_response import DeleteResponse
 from schemas.file_item import FileItem
 from api.chat_history.store import ChatHistoryStore
-from api.exceptions import AgentError, UserTokenLimitError
+from api.exceptions import AgentError, InvalidApiKeyError, UserTokenLimitError
 from api.ingestion.constants import MAX_USER_STORAGE_BYTES
 from api.ingestion.orchestrator import UploadOrchestrator
 from api.ingestion.job_store import JobStore
@@ -65,7 +66,12 @@ class LeiService:
                 knowledge_filters={"meta_data.hash": selected_document_ids} if selected_document_ids else None,
             )
         except AuthenticationError as exc:
-            raise AgentError("Invalid OpenAI API key.") from exc
+            raise InvalidApiKeyError("Invalid OpenAI API key.") from exc
+        except ModelProviderError as exc:
+            message = str(exc).lower()
+            if "incorrect api key" in message or "invalid_api_key" in message:
+                raise InvalidApiKeyError("Invalid OpenAI API key.") from exc
+            raise AgentError(f"Error executing model provider: {str(exc)}") from exc
 
         content = result.content if isinstance(result.content, str) else str(result.content)
         metrics = result.metrics

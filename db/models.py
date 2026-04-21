@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import Column, DateTime, Integer, String, Text
 
@@ -18,14 +18,14 @@ class IngestionJob(Base):
     error_message = Column(Text, nullable=True)
     content_hash = Column(String(128), nullable=True, index=True)
     metadata_hash = Column(String(128), nullable=False, index=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
 
 
 class ChatMessage(Base):
     __tablename__ = "chat_messages"
 
-    message_id = Column(String(64), primary_key=True)
+    message_id = Column(Integer, primary_key=True, autoincrement=True)
     user_hash = Column(String(128), nullable=False, index=True)
     role = Column(String(16), nullable=False)
     content = Column(Text, nullable=False)
@@ -36,4 +36,4 @@ class ChatMessage(Base):
     status = Column(String(32), nullable=False, index=True)
     error_message = Column(Text, nullable=True)
     run_id = Column(String(128), nullable=True, index=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc), index=True)
