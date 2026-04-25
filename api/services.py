@@ -4,6 +4,7 @@ from agno.exceptions import ModelProviderError
 from openai import AuthenticationError
 
 from schemas.chat_request import ChatRequest
+from schemas.chat_router_decision import ChatRoute, ChatRouterDecision
 from schemas.chat_history_delete_response import ChatHistoryDeleteResponse
 from schemas.chat_message_item import ChatMessageItem
 from schemas.chat_response import ChatResponse
@@ -20,7 +21,7 @@ from celery_app import celery_app
 from config.env_settings import get_settings
 from vectordb.files_repository import FileRepository
 
-from agents.chat_responder import get_chat_responder_agent
+from agents.chat_responder import get_chat_responder_agent, get_chat_router_agent
 from db.session import get_session
 from vectordb.knowledge import KnowledgeProvider
 
@@ -53,32 +54,57 @@ class LeiService:
             if invalid_ids:
                 raise AgentError("Invalid documentIds for user.")
 
-        chat_responder = get_chat_responder_agent(
-            knowledge=self._knowledge_provider.get_knowledge(
-                user_hash,
-                api_key=effective_api_key,
-                document_ids=selected_document_ids,
-            ),
-            api_key=effective_api_key,
-        )
+        route = ChatRoute.KNOWLEDGE
+        router_answer: str | None = None
         try:
-            result: RunOutput = chat_responder.run(
+            chat_router = get_chat_router_agent(api_key=effective_api_key)
+            router_result: RunOutput = chat_router.run(
                 input=payload.question,
                 user_id=user_hash,
-                knowledge_filters={"meta_data.hash": selected_document_ids} if selected_document_ids else None,
             )
-        except AuthenticationError as exc:
-            raise InvalidApiKeyError("Invalid OpenAI API key.") from exc
-        except ModelProviderError as exc:
-            message = str(exc).lower()
-            if "incorrect api key" in message or "invalid_api_key" in message:
-                raise InvalidApiKeyError("Invalid OpenAI API key.") from exc
-            raise AgentError(f"Error executing model provider: {str(exc)}") from exc
+            router_content = router_result.content
+            if isinstance(router_content, ChatRouterDecision):
+                route = router_content.route
+                router_answer = router_content.answer
+        except Exception:
+            route = ChatRoute.KNOWLEDGE
 
-        content = result.content if isinstance(result.content, str) else str(result.content)
-        metrics = result.metrics
-        model = result.model
-        run_id = result.run_id
+        if route == ChatRoute.SOCIAL:
+            content = (
+                router_answer.strip()
+                if isinstance(router_answer, str) and router_answer.strip()
+                else "Ola! Posso ajudar com perguntas sobre os documentos enviados."
+            )
+            model = "router-small"
+            run_id = None
+            metrics = None
+        else:
+            chat_responder = get_chat_responder_agent(
+                knowledge=self._knowledge_provider.get_knowledge(
+                    user_hash,
+                    api_key=effective_api_key,
+                    document_ids=selected_document_ids,
+                ),
+                api_key=effective_api_key,
+            )
+            try:
+                result: RunOutput = chat_responder.run(
+                    input=payload.question,
+                    user_id=user_hash,
+                    knowledge_filters={"meta_data.hash": selected_document_ids} if selected_document_ids else None,
+                )
+            except AuthenticationError as exc:
+                raise InvalidApiKeyError("Invalid OpenAI API key.") from exc
+            except ModelProviderError as exc:
+                message = str(exc).lower()
+                if "incorrect api key" in message or "invalid_api_key" in message:
+                    raise InvalidApiKeyError("Invalid OpenAI API key.") from exc
+                raise AgentError(f"Error executing model provider: {str(exc)}") from exc
+
+            content = result.content if isinstance(result.content, str) else str(result.content)
+            metrics = result.metrics
+            model = result.model
+            run_id = result.run_id
 
         self._chat_history_store.create_message(
             user_hash=user_hash,
