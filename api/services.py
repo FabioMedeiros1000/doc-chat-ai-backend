@@ -10,6 +10,7 @@ from schemas.chat_response import ChatResponse
 from schemas.upload_response import UploadResponse
 from schemas.delete_response import DeleteResponse
 from schemas.file_item import FileItem
+from api.agno_session_cleanup import delete_agno_sessions_for_user
 from api.chat_history.store import ChatHistoryStore
 from api.exceptions import AgentError, InvalidApiKeyError, UserTokenLimitError
 from api.ingestion.constants import MAX_USER_STORAGE_BYTES
@@ -20,6 +21,7 @@ from config.env_settings import get_settings
 from vectordb.files_repository import FileRepository
 
 from agents.chat_responder import get_chat_responder_agent
+from db.session import get_session
 from vectordb.knowledge import KnowledgeProvider
 
 
@@ -141,7 +143,19 @@ class LeiService:
         if not normalized_user_hash:
             raise AgentError("userHash is required.")
 
-        deleted_count = self._chat_history_store.delete_messages_for_user(normalized_user_hash)
+        session = get_session()
+        try:
+            delete_agno_sessions_for_user(session, normalized_user_hash)
+            deleted_count = self._chat_history_store.delete_messages_for_user_in_session(
+                session, normalized_user_hash
+            )
+            session.commit()
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
+
         return ChatHistoryDeleteResponse(
             success=True,
             message="Chat history deleted successfully.",

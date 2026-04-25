@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from typing import List, Optional
 
 from sqlalchemy import func, select
+from sqlalchemy.orm import Session
 
 from api.exceptions import AgentError
 from db.models import ChatMessage
@@ -107,6 +108,18 @@ class ChatHistoryStore:
         finally:
             session.close()
 
+    def delete_messages_for_user_in_session(self, session: Session, user_hash: str) -> int:
+        normalized_user_hash = user_hash.strip() if user_hash else ""
+        if not normalized_user_hash:
+            raise AgentError("userHash is required.")
+
+        count = (
+            session.query(ChatMessage)
+            .filter(ChatMessage.user_hash == normalized_user_hash)
+            .delete(synchronize_session=False)
+        )
+        return int(count or 0)
+
     def delete_messages_for_user(self, user_hash: str) -> int:
         normalized_user_hash = user_hash.strip() if user_hash else ""
         if not normalized_user_hash:
@@ -114,12 +127,8 @@ class ChatHistoryStore:
 
         session = get_session()
         try:
-            count = (
-                session.query(ChatMessage)
-                .filter(ChatMessage.user_hash == normalized_user_hash)
-                .delete(synchronize_session=False)
-            )
+            deleted = self.delete_messages_for_user_in_session(session, normalized_user_hash)
             session.commit()
-            return int(count or 0)
+            return deleted
         finally:
             session.close()
